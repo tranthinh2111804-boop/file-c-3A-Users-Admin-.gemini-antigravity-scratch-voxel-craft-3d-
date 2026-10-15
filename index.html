@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Minecraft: The Ancient Portal & Ender Dragon</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+            color: #fff;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+
+        /* Crosshair */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.9);
+        }
+        #crosshair::before {
+            top: 9px;
+            left: 0;
+            width: 20px;
+            height: 2px;
+        }
+        #crosshair::after {
+            top: 0;
+            left: 9px;
+            width: 2px;
+            height: 20px;
+        }
+
+        /* Top HUD Bar */
+        #top-hud {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-panel {
+            background: rgba(20, 20, 20, 0.75);
+            border: 2px solid #555;
+            border-radius: 8px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-weight: bold;
+            font-size: 15px;
+            text-shadow: 1px 1px 2px #000;
+            pointer-events: auto;
+        }
+
+        #day-night-clock {
+            color: #ffd700;
+        }
+
+        .diff-btn {
+            background: #2b7a38;
+            color: #fff;
+            border: 2px solid #48b85b;
+            border-radius: 6px;
+            padding: 5px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .diff-btn:hover {
+            filter: brightness(1.2);
+            transform: scale(1.05);
+        }
+        .diff-btn.hard {
+            background: #9e2a2b;
+            border-color: #e5383b;
+            color: #fff;
+        }
+
+        .craft-help-btn {
+            background: #3e5c76;
+            color: #fff;
+            border: 2px solid #638ab4;
+            border-radius: 6px;
+            padding: 5px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .craft-help-btn:hover {
+            filter: brightness(1.2);
+        }
+
+        /* Boss Bar */
+        #boss-container {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 480px;
+            text-align: center;
+            display: none;
+            z-index: 10;
+        }
+        #boss-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #d83bfb;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 4px;
+            letter-spacing: 2px;
+        }
+        #boss-health-bar {
+            width: 100%;
+            height: 18px;
+            background: #222;
+            border: 2px solid #8822aa;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(180, 50, 255, 0.6);
+        }
+        #boss-health-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #9911bb, #d83bfb, #ff77ee);
+            transition: width 0.25s ease-out;
+        }
+
+        /* Bottom HUD */
+        #bottom-hud {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #hearts-container {
+            display: flex;
+            gap: 2px;
+            font-size: 20px;
+            text-shadow: 0 0 3px #000;
+        }
+
+        #hotbar-container {
+            display: flex;
+            gap: 4px;
+            background: rgba(30, 30, 30, 0.85);
+            border: 3px solid #555;
+            padding: 4px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+            pointer-events: auto;
+        }
+
+        .hotbar-slot {
+            width: 52px;
+            height: 52px;
+            background: #444;
+            border: 2px solid #666;
+            border-radius: 4px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+        .hotbar-slot:hover {
+            border-color: #aaa;
+        }
+        .hotbar-slot.active {
+            border-color: #fff;
+            background: #555;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+        .slot-num {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 11px;
+            color: #bbb;
+        }
+        .slot-icon {
+            width: 32px;
+            height: 32px;
+            image-rendering: pixelated;
+        }
+        .slot-count {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        /* Interaction prompt */
+        #interaction-prompt {
+            position: absolute;
+            bottom: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #ffd700;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 1px 1px 2px #000;
+            display: none;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Notification Banner */
+        #notification-banner {
+            position: absolute;
+            top: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 25, 0.9);
+            border: 2px solid #a855f7;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #f3e8ff;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 15;
+        }
+        #notification-banner.show {
+            opacity: 1;
+        }
+
+        /* Screen Damage & Portal Flash */
+        #damage-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(220, 20, 20, 0.35);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s;
+            z-index: 5;
+        }
+        #damage-overlay.flash {
+            opacity: 1;
+        }
+
+        #portal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(140, 30, 220, 0.8) 0%, rgba(30, 0, 60, 0.95) 100%);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s;
+            z-index: 20;
+        }
+        #portal-overlay.warp {
+            opacity: 1;
+        }
+
+        /* Crafting Modal (E) */
+        #crafting-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 620px;
+            max-height: 82vh;
+            background: #2b2b2b;
+            border: 4px solid #666;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.9);
+            border-radius: 8px;
+            display: none;
+            flex-direction: column;
+            z-index: 30;
+        }
+        #crafting-modal.active {
+            display: flex;
+        }
+        .modal-header {
+            background: #1e1e1e;
+            padding: 12px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #444;
+        }
+        .modal-header h2 {
+            font-size: 18px;
+            color: #ffd700;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-btn:hover {
+            color: #fff;
+        }
+
+        #crafting-recipes {
+            padding: 14px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .recipe-card {
+            background: #383838;
+            border: 2px solid #555;
+            border-radius: 6px;
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: border-color 0.2s;
+        }
+        .recipe-card.key-recipe {
+            border-color: #ffd700;
+            background: #3c3520;
+        }
+        .recipe-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .recipe-icon {
+            width: 36px;
+            height: 36px;
+            image-rendering: pixelated;
+        }
+        .recipe-title {
+            font-size: 15px;
+            font-weight: bold;
+            color: #fff;
+        }
+        .recipe-desc {
+            font-size: 12px;
+            color: #bbb;
+            margin-top: 2px;
+        }
+        .recipe-needs {
+            display: flex;
+            gap: 8px;
+            margin-top: 5px;
+        }
+        .recipe-need {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            background: #252525;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .recipe-need.ok {
+            color: #6ee7b7;
+        }
+        .recipe-need.missing {
+            color: #f87171;
+        }
+        .mini-icon {
+            width: 16px;
+            height: 16px;
+            image-rendering: pixelated;
+        }
+        .craft-btn {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .craft-btn.enabled:hover {
+            background: #1d4ed8;
+            transform: scale(1.04);
+        }
+        .craft-btn.disabled {
+            background: #555;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        /* Start / Pause Overlay */
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 15, 20, 0.88);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            text-align: center;
+            padding: 20px;
+        }
+        .overlay-box {
+            background: #222;
+            border: 3px solid #777;
+            padding: 30px 40px;
+            border-radius: 12px;
+            max-width: 680px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+        }
+        .overlay-box h1 {
+            font-size: 28px;
+            color: #55ff55;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 12px;
+        }
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            text-align: left;
+            margin: 18px 0;
+            background: #181818;
+            padding: 14px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .controls-grid b {
+            color: #ffd700;
+        }
+        .play-btn {
+            background: #2ecc71;
+            color: #000;
+            border: none;
+            padding: 14px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(46, 204, 113, 0.5);
+            transition: transform 0.15s, background-color 0.15s;
+        }
+        .play-btn:hover {
+            background: #27ae60;
+            transform: scale(1.05);
+        }
+
+        /* Death & Victory Modals */
+        .modal-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 60;
+            text-align: center;
+        }
+        .modal-screen.active {
+            display: flex;
+        }
+        .modal-screen h1 {
+            font-size: 44px;
+            margin-bottom: 16px;
+            letter-spacing: 2px;
+        }
+        #death-modal h1 {
+            color: #ff3333;
+            text-shadow: 0 0 20px #ff0000;
+        }
+        #victory-modal h1 {
+            color: #ffd700;
+            text-shadow: 0 0 25px #ffd700;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="crosshair"></div>
+
+    <!-- Top HUD -->
+    <div id="top-hud">
+        <div class="hud-panel">
+            <span id="day-night-clock">☀️ Day: 05:00</span>
+        </div>
+        <div class="hud-panel">
+            <button id="difficulty-btn" class="diff-btn easy">Difficulty: EASY</button>
+            <button class="craft-help-btn" onclick="window.gameUI.toggleCrafting()">Crafting (E)</button>
+        </div>
+    </div>
+
+    <!-- Boss Health Bar -->
+    <div id="boss-container">
+        <div id="boss-title">ENDER DRAGON</div>
+        <div id="boss-health-bar">
+            <div id="boss-health-fill"></div>
+        </div>
+    </div>
+
+    <!-- Interaction Prompt -->
+    <div id="interaction-prompt"></div>
+
+    <!-- Notification Banner -->
+    <div id="notification-banner">Notification</div>
+
+    <!-- Bottom HUD (Hearts & Hotbar) -->
+    <div id="bottom-hud">
+        <div id="hearts-container"></div>
+        <div id="hotbar-container"></div>
+    </div>
+
+    <!-- Screen Overlays -->
+    <div id="damage-overlay"></div>
+    <div id="portal-overlay"></div>
+
+    <!-- Crafting Modal -->
+    <div id="crafting-modal">
+        <div class="modal-header">
+            <h2>Crafting Recipes</h2>
+            <button class="close-btn" id="close-crafting">&times;</button>
+        </div>
+        <div id="crafting-recipes"></div>
+    </div>
+
+    <!-- Start / Pause Menu -->
+    <div id="start-overlay">
+        <div class="overlay-box">
+            <h1>3D MINECRAFT</h1>
+            <p style="color: #bbb; font-size: 14px;">The Ancient Portal & Ender Dragon</p>
+            <div class="controls-grid">
+                <div><b>W, A, S, D:</b> Move character</div>
+                <div><b>Mouse:</b> 1st Person Camera</div>
+                <div><b>Space:</b> Jump</div>
+                <div><b>Space in air:</b> ⚡ DOUBLE JUMP!</div>
+                <div><b>Left Click:</b> Mine Block / Attack</div>
+                <div><b>Right Click:</b> Place Block / Shoot Bow</div>
+                <div><b>1 - 9 / Scroll:</b> Select Hotbar slot</div>
+                <div><b>E:</b> Open Crafting Menu</div>
+                <div><b>F:</b> Unlock Spawn Portal with Key</div>
+                <div><b>T / Enter:</b> In-game Chat (Multiplayer)</div>
+                <div><b>Cycle:</b> 5m Daytime, 4m Nighttime</div>
+            </div>
+            <div style="background: #282035; border: 1px solid #7c3aed; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; text-align: left;">
+                <p>🔹 <b>Daytime:</b> Friendly animals (Pigs, Cows) spawn on grass.</p>
+                <p>🔹 <b>Nighttime:</b> Monsters (Zombies, Skeletons, Creepers) spawn and hunt!</p>
+                <p>🔹 <b>Caves:</b> Deeper caves yield rare ores: Coal &gt; Iron &gt; Gold &gt; Diamond.</p>
+                <p>🔹 <b>Spawn Portal:</b> Craft the <b>Ancient Key</b> (1 Diamond + 2 Gold) to unlock the spawn portal, enter The End, defeat the Ender Dragon, and claim the <b>Dragon Egg</b>!</p>
+            </div>
+            <button class="play-btn" id="start-btn">CLICK TO PLAY</button>
+        </div>
+    </div>
+
+    <!-- Death Modal -->
+    <div class="modal-screen" id="death-modal">
+        <h1>YOU DIED!</h1>
+        <p style="color: #ccc; margin-bottom: 24px; font-size: 18px;">Be careful in the dark caves and during nighttime!</p>
+        <button class="play-btn" id="respawn-btn">RESPAWN AT SPAWN</button>
+    </div>
+
+    <!-- Victory Modal -->
+    <div class="modal-screen" id="victory-modal">
+        <h1>★ THE END CONQUERED! ★</h1>
+        <p style="color: #eee; font-size: 20px; margin-bottom: 12px;">You defeated the Ender Dragon and reclaimed the Dragon Egg!</p>
+        <p style="color: #bbb; margin-bottom: 26px;">The Overworld is safe once again.</p>
+        <button class="play-btn" id="victory-btn">CONTINUE EXPLORING</button>
+    </div>
+
+    <!-- Three.js (Offline Local + CDN fallback) -->
+    <script src="three.min.js"></script>
+    <script>
+        if (typeof THREE === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+        }
+    </script>
+
+    <!-- Game Scripts with Cache Busting -->
+    <script src="js/noise.js?v=2.0"></script>
+    <script src="js/audio.js?v=2.0"></script>
+    <script src="js/textures.js?v=2.0"></script>
+    <script src="js/world.js?v=2.0"></script>
+    <script src="js/player.js?v=2.0"></script>
+    <script src="js/entities.js?v=2.0"></script>
+    <script src="js/daynight.js?v=2.0"></script>
+    <script src="js/dragon.js?v=2.0"></script>
+    <script src="js/portal.js?v=2.0"></script>
+    <script src="js/multiplayer.js?v=2.0"></script>
+    <script src="js/game.js?v=2.0"></script>
+</body>
+</html>
